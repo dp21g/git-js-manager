@@ -1,8 +1,9 @@
 import { Router } from "express";
 import os from "node:os";
-import { getInfo, getCommits, squash, undo, testGetBranches, getDiff, getFiles, compareBranches, reverseCommits, reversePatch, getStatus, stageFile, commit, getWorkingDiff, getExcludes, manageExclude } from "./git.mjs";
+import { getInfo, getCommits, squash, undo, testGetBranches, getDiff, getFiles, compareBranches, reverseCommits, reversePatch, getStatus, stageFile, commit, renameCommitMessage, getWorkingDiff, getExcludes, manageExclude, push, forcePush } from "./git.mjs";
+
 import { listDir, nativeDialog, isGitRepo } from "./folder-picker.mjs";
-import { readConfig, addRecentDir, toggleFavouriteDir, getConfigPath, saveRepoState, updateTabs } from "./config.mjs";
+import { readConfig, addRecentDir, toggleFavouriteDir, getConfigPath, saveRepoState, updateTabs, updateSettings } from "./config.mjs";
 
 /**
  * Create API router.
@@ -34,12 +35,13 @@ export function createRoutes(state) {
 
   // ── Squash ───────────────────────────────────────────────────────────
   router.post("/squash", (req, res) => {
-    const { base, fixup_indices } = req.body;
+    const { base, fixup_indices, custom_message } = req.body;
     if (!base || !fixup_indices?.length) {
       return res.json({ error: "Missing base or indices" });
     }
-    res.json(squash(getTarget(req), base, fixup_indices, state.logs));
+    res.json(squash(getTarget(req), base, fixup_indices, state.logs, custom_message));
   });
+
 
   // ── Undo ─────────────────────────────────────────────────────────────
   router.post("/undo", (req, res) => {
@@ -93,6 +95,12 @@ export function createRoutes(state) {
     res.json(commit(getTarget(req), message, state.logs));
   });
 
+  router.post("/rename-commit", (req, res) => {
+    const { hash, message } = req.body;
+    if (!hash || !message) return res.json({ error: "Missing commit hash or message" });
+    res.json(renameCommitMessage(getTarget(req), hash, message, state.logs));
+  });
+
   router.post("/working-diff", (req, res) => {
     const { path, staged } = req.body;
     if (!path) return res.json({ error: "Missing path" });
@@ -109,6 +117,19 @@ export function createRoutes(state) {
     if (!action || !pattern) return res.json({ error: "Missing action or pattern" });
     res.json(manageExclude(getTarget(req), action, pattern, state.logs));
   });
+
+  router.post("/push", (req, res) => {
+    const { branch } = req.body;
+    if (!branch) return res.json({ error: "No branch provided" });
+    res.json(push(getTarget(req), branch, state.logs));
+  });
+
+  router.post("/force-push", (req, res) => {
+    const { branch } = req.body;
+    if (!branch) return res.json({ error: "No branch provided" });
+    res.json(forcePush(getTarget(req), branch, state.logs));
+  });
+
 
   // ── Folder browsing ──────────────────────────────────────────────────
   router.get("/ls", (req, res) => {
@@ -165,6 +186,10 @@ export function createRoutes(state) {
 
   router.post("/update-tabs", (req, res) => {
     res.json(updateTabs(req.body.tabs));
+  });
+
+  router.post("/update-settings", (req, res) => {
+    res.json(updateSettings(req.body.settings));
   });
 
   return router;

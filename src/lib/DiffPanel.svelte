@@ -115,8 +115,9 @@
     shiftAnchor = null;
   }
 
-  function reverseSelection() {
+  function discardSelection() {
     if (selectedIndices.size === 0) return;
+    if (!confirm(`Discard ${selectedIndices.size} selected lines?`)) return;
     
     let patchContent = globalHeader + "\n";
     let currentHunkHeader = null;
@@ -141,6 +142,17 @@
     dispatch("reverse-patch", patchContent);
     clearSelection();
   }
+
+  function discardAllHunks() {
+      if (!confirm("Discard ALL changes in this file?")) return;
+      const allSelected = new Set();
+      lines.forEach(l => {
+          if (l.type === 'add' || l.type === 'del') allSelected.add(l.index);
+      });
+      selectedIndices = allSelected;
+      discardSelection();
+  }
+
 
   /**
    * Generates a minimal hunk by including only context lines immediately around 
@@ -236,8 +248,9 @@
         i++;
     }
     selectedIndices = next;
-    reverseSelection();
+    discardSelection();
   }
+
 </script>
 
 <div class="diff-container" class:has-selection={selectedIndices.size > 0}>
@@ -245,17 +258,29 @@
     <div class="empty">Select a file to view diff</div>
   {:else}
     <div class="diff-header-bar">
-        {#if selectedIndices.size > 0}
-            <button class="btn btn-primary btn-sm" on:click={reverseSelection}>
-                ↩ Reverse Selected ({selectedIndices.size} lines)
-            </button>
-            <button class="btn btn-ghost btn-sm" on:click={clearSelection}>
-                Clear
-            </button>
-        {:else}
-            <span class="hint">Select red/green lines to undo specific changes from this view.</span>
-        {/if}
+        <div class="header-left">
+            {#if selectedIndices.size > 0}
+                <button class="btn btn-primary btn-sm discard-sel-btn" on:click={discardSelection}>
+                    🗑 Discard Selected ({selectedIndices.size} lines)
+                </button>
+                <button class="btn btn-ghost btn-sm" on:click={clearSelection}>
+                    Clear
+                </button>
+            {:else}
+                <span class="hint">Select red/green lines to undo specific changes from this view.</span>
+            {/if}
+        </div>
+        
+        <div class="header-right">
+            {#if diff}
+                <button class="btn btn-ghost btn-sm discard-all-btn" on:click={discardAllHunks}>
+                    🗑 Discard All Hunks
+                </button>
+            {/if}
+        </div>
     </div>
+
+
     <div class="diff-view">
       {#each lines as line}
         <div 
@@ -276,10 +301,11 @@
           </div>
           
           {#if line.type === 'hunk'}
-            <button class="hunk-reverse-btn" on:click={() => handleReverseHunk(line.index)} title="Reverse this entire hunk">
-                ↩ Reverse Hunk
+            <button class="hunk-reverse-btn" on:click={() => handleReverseHunk(line.index)} title="Discard this entire hunk">
+                🗑 Discard Hunk
             </button>
           {/if}
+
 
           <pre>{line.text}</pre>
         </div>
@@ -306,10 +332,17 @@
       background: var(--surface-h);
       border-bottom: 1px solid var(--bdr);
       display: flex;
+      justify-content: space-between;
       gap: 12px;
       align-items: center;
       min-height: 48px;
   }
+  .header-left, .header-right { display: flex; align-items: center; gap: 8px; }
+
+  .discard-sel-btn { background: var(--red) !important; border-color: var(--red) !important; }
+  .discard-all-btn { color: var(--red); }
+  .discard-all-btn:hover { background: rgba(248, 81, 73, 0.1); }
+
 
   .hint { font-size: 11px; color: var(--tx-d); }
 
@@ -342,14 +375,14 @@
     width: 80px;
     flex-shrink: 0;
     user-select: none;
-    background: rgba(0,0,0,0.1);
+    background: var(--surface-h);
     border-right: 1px solid var(--bdr);
     margin-right: 12px;
     cursor: pointer;
   }
 
   .line-nums:hover {
-      background: rgba(255,255,255,0.05);
+      background: var(--bdr);
   }
 
   .ln, .ln-pad {
@@ -390,18 +423,21 @@
       right: 16px;
       top: 50%;
       transform: translateY(-50%);
-      background: var(--surface-h);
-      border: 1px solid var(--bdr);
-      color: var(--tx-d);
-      font-size: 9px;
-      padding: 2px 6px;
+      background: var(--red);
+      border: 1px solid var(--red);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 10px;
       border-radius: 4px;
       cursor: pointer;
       opacity: 0;
       transition: all 0.2s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   }
-  .line:hover .hunk-reverse-btn { opacity: 1; }
-  .hunk-reverse-btn:hover { color: var(--acc); border-color: var(--acc); }
+  .line:hover .hunk-reverse-btn { opacity: 0.8; }
+  .hunk-reverse-btn:hover { opacity: 1 !important; transform: translateY(-50%) scale(1.05); }
 
-  .meta { color: var(--tx-d); background: var(--surface-h); opacity: 0.8; }
+
+  .meta { color: var(--tx-d); background: var(--surface-h); }
 </style>

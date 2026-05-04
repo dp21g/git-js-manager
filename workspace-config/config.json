@@ -1,0 +1,127 @@
+{
+  "recentDirs": [
+    "/Users/dp015035/Github/git-squash-ui",
+    "/Users/dp015035/Github/ohai-components-ui",
+    "/Users/dp015035/Github/common-ui-dev",
+    "/Users/dp015035/Github/charting-ui"
+  ],
+  "favouriteDirs": [
+    "/Users/dp015035/Github/charting-ui",
+    "/Users/dp015035/Github/common-ui-dev"
+  ],
+  "lastRepo": "/Users/dp015035/Github/git-squash-ui",
+  "repoStates": {
+    "/Users/dp015035/Github/charting-ui": {
+      "mode": "commit",
+      "baseBranch": "master",
+      "selected": [],
+      "compareBranch1": "master",
+      "compareBranch2": "feature/dhavalpa-EHRM-102953-disable-ohpp-navigation-on-mobile-layout",
+      "selectedFile": null,
+      "lastUpdate": 1777904641666,
+      "sidebarWidth": 371,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": false
+      },
+      "diffSplitH": 50,
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": true
+    },
+    "/Users/dp015035/Github/common-ui-dev": {
+      "mode": "commit",
+      "baseBranch": "master",
+      "selected": [],
+      "compareBranch1": "master",
+      "compareBranch2": "feature/dhavalpa-EHRM-102953-disable-ohpp-navigation-on-mobile-layout",
+      "selectedFile": null,
+      "sidebarWidth": 371,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": false
+      },
+      "lastUpdate": 1777904938009,
+      "diffSplitH": 50,
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": true
+    },
+    "/Users/dp015035/Github/ohai-components-ui": {
+      "mode": "diff",
+      "baseBranch": "master",
+      "selected": [
+        0
+      ],
+      "compareBranch1": "master",
+      "compareBranch2": "feature/dhavalpa-EHRM-67372-add-charting-agent-support",
+      "selectedFile": "compliance/26.05/EHRM/EHRM-102953.json",
+      "sidebarWidth": 600,
+      "diffSplitH": 22.396449929863742,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": true,
+        "unpushed": false
+      },
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "lastUpdate": 1777905032268,
+      "logPanelFloating": false
+    },
+    "/Users/dp015035/Github/git-squash-ui": {
+      "mode": "commit",
+      "baseBranch": "master",
+      "selected": [],
+      "compareBranch1": "master",
+      "compareBranch2": "feature/dhavalpa-EHRM-67372-add-charting-agent-support",
+      "selectedFile": null,
+      "sidebarWidth": 600,
+      "diffSplitH": 22.396449929863742,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": true,
+        "unpushed": false
+      },
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": false,
+      "lastUpdate": 1777905180320
+    }
+  },
+  "tabs": [
+    {
+      "id": "tab-eedp81wwt",
+      "repoPath": "/Users/dp015035/Github/charting-ui",
+      "name": "charting-ui",
+      "active": false
+    },
+    {
+      "id": "tab-0h957ul2z",
+      "repoPath": "/Users/dp015035/Github/common-ui-dev",
+      "name": "common-ui-dev",
+      "active": false
+    },
+    {
+      "id": "tab-0hq1edr4a",
+      "repoPath": "/Users/dp015035/Github/git-squash-ui",
+      "name": "git-squash-ui",
+      "active": true
+    }
+  ],
+  "settings": {
+    "theme": "dark",
+    "wideDrawerVisible": false
+  }
+}

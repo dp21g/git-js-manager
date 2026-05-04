@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
-import { readConfig } from "./config.mjs";
 
 const BACKUP_DIR = path.join(os.homedir(), ".git-squash-ui", "backups");
 const SCRIPTS_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "scripts");
 const SCRIPT_LOG_PATH = path.join(os.homedir(), ".git-squash-ui", "script-execution.log");
+const COMMIT_FIELD_SEPARATOR = "__GSUI_FIELD__";
+const COMMIT_ENTRY_SEPARATOR = "__GSUI_ENTRY__";
 
 function getBackupFile(repoPath) {
   const repoId = crypto.createHash("md5").update(path.resolve(repoPath)).digest("hex");
@@ -36,16 +37,26 @@ function popBackup(repoPath) {
 
 /** Run a git command, return { ok, out, err } */
 export function git(args, cwd) {
+  const isRemoteOp = args.includes("push") || args.includes("commit") || args.includes("fetch") || args.includes("pull");
+  const gitExecutable = isRemoteOp ? path.join(SCRIPTS_DIR, "git-with-pin") : "git";
+
   try {
-    const out = execSync(`git ${args}`, {
+    const out = execSync(`${gitExecutable} ${args}`, {
       cwd,
       encoding: "utf-8",
-      timeout: 15000,
+      timeout: isRemoteOp ? 60000 : 15000,
       stdio: ["pipe", "pipe", "pipe"],
     });
-    return { ok: true, out: out.trim(), err: "" };
+
+    // Strip control characters and normalize newlines
+    const cleanedOut = out.replace(/[\x00-\x1F\x7F]/g, (char) => (char === '\n' || char === '\r' || char === '\t' ? char : ''))
+                          .replace(/\r\n/g, "\n")
+                          .replace(/\n+$/, "");
+    
+    return { ok: true, out: cleanedOut, err: "" };
   } catch (e) {
-    return { ok: false, out: "", err: (e.stderr || e.message || "").trim() };
+    const err = (e.stderr || e.message || "").trim();
+    return { ok: false, out: "", err: err.replace(/[\x00-\x1F\x7F]/g, (char) => (char === '\n' || char === '\r' || char === '\t' ? char : '')) };
   }
 }
 
@@ -56,30 +67,84 @@ function runScript(scriptName, args, cwd) {
     const out = execFileSync("/bin/bash", [path.join(SCRIPTS_DIR, scriptName), ...args], {
       cwd,
       encoding: "utf-8",
-      timeout: 30000,
+      timeout: 60000,
+      // Provide git-with-pin in PATH as "git" for scripts as well
+      env: { ...process.env, PATH: `${SCRIPTS_DIR}:${process.env.PATH}` },
       stdio: ["pipe", "pipe", "pipe"],
     });
-    if (out) fs.appendFileSync(SCRIPT_LOG_PATH, `${out}\n`);
-    return { ok: true, out: out.trim(), err: "" };
+
+    // Strip ALL control characters except tab, and normalize newlines
+    const normalizedOut = out.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "")
+                             .replace(/\r/g, "")
+                             .replace(/\n+$/, "");
+
+                             
+    if (normalizedOut) fs.appendFileSync(SCRIPT_LOG_PATH, `${normalizedOut}\n`);
+    return { ok: true, out: normalizedOut, err: "" };
   } catch (e) {
     const err = (e.stderr || e.message || "").trim();
     if (err) fs.appendFileSync(SCRIPT_LOG_PATH, `${err}\n`);
-    return { ok: false, out: "", err };
+    return { ok: false, out: "", err: err.replace(/[\x00-\x1F\x7F]/g, "") };
   }
 }
 
-/** Get current branch, detected base, and all local branches */
+function parseDetailedCommits(raw = "") {
+  return raw
+    .split(COMMIT_ENTRY_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [hash = "", subject = "", ...messageParts] = entry.split(COMMIT_FIELD_SEPARATOR);
+      const fullMessage = messageParts.join(COMMIT_FIELD_SEPARATOR).trim();
+      const normalizedHash = hash.trim();
+      const normalizedSubject = subject.trim();
+      return {
+        hash: normalizedHash,
+        shortHash: normalizedHash.slice(0, 7),
+        message: normalizedSubject || fullMessage.split("\n")[0] || "",
+        fullMessage: fullMessage || normalizedSubject,
+      };
+    })
+    .filter((commit) => commit.hash);
+}
+
+function detectBaseBranch(repoPath, currentBranch = "") {
+  for (const candidate of ["main", "master", "develop"]) {
+    if (candidate === currentBranch) continue;
+    if (git(`show-ref --verify --quiet refs/heads/${candidate}`, repoPath).ok) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+function getLocalCommits(repoPath) {
+  const format = `--format=%H${COMMIT_FIELD_SEPARATOR}%s${COMMIT_FIELD_SEPARATOR}%B${COMMIT_ENTRY_SEPARATOR}`;
+
+  let result = git(`log @{u}..HEAD ${format}`, repoPath);
+  if (result.ok) {
+    return parseDetailedCommits(result.out);
+  }
+
+  const currentBranch = git("branch --show-current", repoPath).out.trim();
+  const fallbackBase = detectBaseBranch(repoPath, currentBranch);
+
+  if (fallbackBase) {
+    result = git(`log ${fallbackBase}..HEAD ${format}`, repoPath);
+    if (result.ok) return parseDetailedCommits(result.out);
+  }
+
+  result = git(`log HEAD ${format}`, repoPath);
+  return result.ok ? parseDetailedCommits(result.out) : [];
+}
+
+
+/** Get current branch, detected base, and all local bclicranches */
 export function getInfo(repoPath) {
   const branch = git("branch --show-current", repoPath);
   if (!branch.ok) return null;
 
-  let base = "master";
-  for (const c of ["main", "master", "develop"]) {
-    if (git(`show-ref --verify --quiet refs/heads/${c}`, repoPath).ok) {
-      base = c;
-      break;
-    }
-  }
+  const base = detectBaseBranch(repoPath, branch.out.trim()) || "master";
 
   const branchData = runScript("get-branches.sh", [repoPath], repoPath);
   const parsed = branchData.ok ? JSON.parse(branchData.out) : { branch: branch.out, branches: [], branchStatuses: [] };
@@ -128,7 +193,7 @@ export function getCommits(repoPath, baseBranch, logs) {
 }
 
 /** Perform squash via automated interactive rebase */
-export function squash(repoPath, baseBranch, fixupIndices, logs) {
+export function squash(repoPath, baseBranch, fixupIndices, logs, customMessage = "") {
   if (!fixupIndices.length) return { error: "No commits selected" };
   const totalAhead = commitsAheadCount(repoPath, baseBranch);
   const sortedFixups = [...fixupIndices].sort((a, b) => a - b);
@@ -143,7 +208,6 @@ export function squash(repoPath, baseBranch, fixupIndices, logs) {
   }
 
   // The number of commits to collapse (including the ones to be squashed and the one we merge into)
-  // If we select indices 0 and 1, we squash 2 commits into index 2. Total affected: 3.
   const squashCount = len + 1;
   if (squashCount > totalAhead) {
     const msg = "Cannot squash the base commit. At least one 'pick' must remain.";
@@ -187,12 +251,16 @@ export function squash(repoPath, baseBranch, fixupIndices, logs) {
       };
     });
 
-  const squashed = commits;
-
-  // Always use the oldest commit message in the squash block (the "pick" commit)
-  // as the final commit message, discarding the newer "fixup" messages.
-  const oldest = commits[0];
-  const message = oldest ? `${oldest.subject}\n\n${oldest.body}`.trim() : "Squashed commits";
+  // Determine message
+  let message = "";
+  if (customMessage && customMessage.trim()) {
+      message = customMessage.trim();
+  } else {
+      // Always use the oldest commit message in the squash block (the "pick" commit)
+      // as the final commit message, discarding the newer "fixup" messages.
+      const oldest = commits[0];
+      message = oldest ? `${oldest.subject}\n\n${oldest.body}`.trim() : "Squashed commits";
+  }
 
   const commitMsgFile = path.join(os.tmpdir(), `git-squash-message-${Date.now()}.txt`);
   fs.writeFileSync(commitMsgFile, message);
@@ -210,6 +278,7 @@ export function squash(repoPath, baseBranch, fixupIndices, logs) {
   logs?.success(`Squash completed on ${baseBranch} without rebase conflicts`);
   return { success: true, backup: head.out };
 }
+
 
 function commitsAheadCount(repoPath, baseBranch) {
   const result = git(`rev-list --count ${baseBranch}..HEAD`, repoPath);
@@ -250,9 +319,22 @@ export function getFiles(repoPath, hashes, logs) {
   }
   
   const files = r.out.split("\n").filter(Boolean).map(line => {
-    const [status, path] = line.split(/\s+/);
+    // Format: STATUS  PATH
+    // e.g. M       some/path/file.txt
+    // We use regex to handle paths with spaces and multiple separators
+    const match = line.match(/^([A-Z\?]+)\s+(.*)$/);
+    if (!match) return null;
+    
+    let status = match[1];
+    let path = match[2];
+
+    // Handle quoted paths
+    if (path.startsWith('"') && path.endsWith('"')) {
+       path = path.slice(1, -1).replace(/\\/g, '');
+    }
+    
     return { status, path };
-  });
+  }).filter(Boolean);
   
   return { files };
 }
@@ -325,11 +407,21 @@ export function getStatus(repoPath, logs) {
   }
   
   const files = r.out.split("\n").filter(Boolean).map(line => {
-    // Porcelain v1: XY path [-> renamed_path]
+    // ... (logic remains same)
     const x = line[0];
     const y = line[1];
-    const path = line.slice(3);
-    // X is staged status, Y is unstaged status
+    let path = line.slice(3);
+    if (path.startsWith('"') && path.endsWith('"')) {
+        path = path.slice(1, -1).replace(/\\/g, ''); 
+    }
+    const arrowIndex = path.indexOf(' -> ');
+    if (arrowIndex !== -1 && (x === 'R' || x === 'C')) {
+        path = path.substring(arrowIndex + 4);
+        if (path.startsWith('"') && path.endsWith('"')) {
+            path = path.slice(1, -1).replace(/\\/g, '');
+        }
+    }
+
     return { 
         x, 
         y, 
@@ -340,8 +432,11 @@ export function getStatus(repoPath, logs) {
     };
   });
   
-  return { files };
+  const unpushed = getLocalCommits(repoPath);
+
+  return { files, unpushed };
 }
+
 
 /** Stage or unstage a file */
 export function stageFile(repoPath, action, filePath, logs) {
@@ -362,6 +457,36 @@ export function commit(repoPath, message, logs) {
     logs?.error(r.err || "Commit failed");
     return { error: r.err || "Commit failed" };
   }
+  return { ok: true };
+}
+
+export function renameCommitMessage(repoPath, hash, message, logs) {
+  const trimmedMessage = message?.trim();
+  if (!trimmedMessage) {
+    return { error: "Commit message is empty" };
+  }
+
+  const localCommit = getLocalCommits(repoPath).find((commit) => commit.hash === hash || commit.shortHash === hash);
+  if (!localCommit) {
+    return { error: "Only local commits that have not reached a remote can be renamed here." };
+  }
+
+  logs?.info(`scripts/rename-commit.sh ${localCommit.shortHash}`);
+
+  const messageFile = path.join(os.tmpdir(), `git-squash-rename-${Date.now()}.txt`);
+  fs.writeFileSync(messageFile, `${message.replace(/\s+$/, "")}\n`);
+
+  try {
+    const result = runScript("rename-commit.sh", [repoPath, localCommit.hash, messageFile], repoPath);
+    if (!result.ok) {
+      logs?.error(result.err || "Commit rename failed");
+      return { error: result.err || "Commit rename failed" };
+    }
+  } finally {
+    if (fs.existsSync(messageFile)) fs.unlinkSync(messageFile);
+  }
+
+  logs?.success(`Renamed commit ${localCommit.shortHash}`);
   return { ok: true };
 }
 
@@ -395,4 +520,34 @@ export function manageExclude(repoPath, action, pattern, logs) {
     return { error: r.err || "Exclude action failed" };
   }
   return { ok: true };
+}
+
+/** Perform a push */
+export function push(repoPath, branchName, logs) {
+  if (branchName === "master" || branchName === "main") {
+      return { error: `Pushing to ${branchName} is not allowed from this UI.` };
+  }
+  logs?.info(`Pushing ${branchName} up...`);
+  const r = git(`push origin ${branchName}`, repoPath);
+  if (!r.ok) {
+    logs?.error(`Push failed: ${r.err}`);
+    return { error: r.err };
+  }
+  logs?.success(`Pushed ${branchName} successfully.`);
+  return { success: true };
+}
+
+/** Perform a force push */
+export function forcePush(repoPath, branchName, logs) {
+  if (branchName === "master" || branchName === "main") {
+      return { error: `Force pushing to ${branchName} is strictly forbidden.` };
+  }
+  logs?.info(`Force pushing ${branchName}...`);
+  const r = git(`push origin ${branchName} --force-with-lease`, repoPath);
+  if (!r.ok) {
+    logs?.error(`Force push failed: ${r.err}`);
+    return { error: r.err };
+  }
+  logs?.success(`Force pushed ${branchName} successfully.`);
+  return { success: true };
 }

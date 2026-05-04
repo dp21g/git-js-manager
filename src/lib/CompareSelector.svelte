@@ -14,11 +14,13 @@
 
 <div class="compare-selector">
   <div class="field">
-    <label>Source Branch</label>
+    <label for="src-branch">Source Branch</label>
     <select 
+      id="src-branch"
       value={branch1} 
       on:change={(e) => dispatch("change", { branch1: e.target.value, branch2 })}
     >
+
       <option value="" disabled>Select branch</option>
       {#each branches as b}
         <option value={b}>{b}</option>
@@ -31,11 +33,13 @@
   </button>
 
   <div class="field">
-    <label>Target Branch</label>
+    <label for="tgt-branch">Target Branch</label>
     <select 
+      id="tgt-branch"
       value={branch2} 
       on:change={(e) => dispatch("change", { branch1, branch2: e.target.value })}
     >
+
       <option value="" disabled>Select branch</option>
       {#each branches as b}
         <option value={b}>{b}</option>

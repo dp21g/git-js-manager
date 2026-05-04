@@ -2,16 +2,24 @@
   import { createEventDispatcher } from "svelte";
 
   export let files = [];
+  export let unpushedCommits = [];
   export let excludes = [];
   export let selectedFile = null;
-  export let collapsed = { staged: false, unstaged: false, excluded: false };
+  export let collapsed = { unpushed: false, staged: false, unstaged: false, excluded: false };
+
   export let commitMessage = "";
   export let loading = false;
+  let editingCommitHash = null;
+  let renameMessage = "";
 
   const dispatch = createEventDispatcher();
 
   $: stagedFiles = files.filter(f => f.staged);
   $: unstagedFiles = files.filter(f => !f.staged);
+  $: if (editingCommitHash && !unpushedCommits.some((commit) => commit.hash === editingCommitHash)) {
+      editingCommitHash = null;
+      renameMessage = "";
+  }
 
   function select(item) {
     dispatch("select", item);
@@ -41,6 +49,28 @@
       dispatch("commit");
   }
 
+  function handlePush() {
+      dispatch("push");
+  }
+
+  function startRename(e, commit) {
+      e.stopPropagation();
+      editingCommitHash = commit.hash;
+      renameMessage = commit.fullMessage || commit.message || "";
+  }
+
+  function cancelRename(e) {
+      e?.stopPropagation();
+      editingCommitHash = null;
+      renameMessage = "";
+  }
+
+  function saveRename(e, commit) {
+      e.stopPropagation();
+      dispatch("rename-commit", { hash: commit.hash, message: renameMessage });
+  }
+
+
   function getStatusLabel(x, y) {
       if (x === '?' && y === '?') return 'Untracked';
       if (x === 'M') return 'Modified (Staged)';
@@ -60,12 +90,92 @@
 </script>
 
 <div class="status-sidebar">
-  <!-- STAGED SECTION (35%) -->
+  <!-- UNPUSHED SECTION (25%) -->
+  <div class="section unpushed-sec" class:collapsed={collapsed.unpushed}>
+    <div 
+        class="header" 
+        on:click={() => toggleCollapse('unpushed')}
+        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapse('unpushed')}
+        role="button"
+        tabindex="0"
+    >
+      <span class="chevron">{collapsed.unpushed ? '▶' : '▼'}</span>
+      <span class="title">Local Commits ({unpushedCommits.length})</span>
+    </div>
+
+    {#if !collapsed.unpushed}
+      <div class="items">
+        {#each unpushedCommits as commit}
+          <div class="file-row commit-row" class:editing={editingCommitHash === commit.hash}>
+            <div class="commit-summary">
+              <div class="file-item inert">
+                <span class="status UP" title="Local commit">↑</span>
+                <span class="path unpushed-msg">{commit.message}</span>
+              </div>
+              <div class="commit-actions">
+                <span class="hash-label">{commit.shortHash || commit.hash}</span>
+                <button
+                  class="action-btn rename"
+                  on:click={(e) => startRename(e, commit)}
+                  title="Rename commit message"
+                  disabled={loading}
+                >
+                  ✎
+                </button>
+              </div>
+            </div>
+
+            {#if editingCommitHash === commit.hash}
+              <div class="rename-panel">
+                <label class="rename-label" for={"rename-" + commit.hash}>Commit Message</label>
+                <textarea
+                  id={"rename-" + commit.hash}
+                  bind:value={renameMessage}
+                  class="rename-input"
+                  rows="4"
+                  disabled={loading}
+                  on:click|stopPropagation
+                  on:keydown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") saveRename(e, commit);
+                    if (e.key === "Escape") cancelRename(e);
+                  }}
+                ></textarea>
+                <div class="rename-actions">
+                  <span class="rename-hint">This rewrites local commit history only.</span>
+                  <div class="rename-buttons">
+                    <button class="btn btn-ghost btn-sm" on:click={cancelRename} disabled={loading}>Cancel</button>
+                    <button
+                      class="btn btn-accent btn-sm"
+                      on:click={(e) => saveRename(e, commit)}
+                      disabled={loading || !renameMessage.trim()}
+                    >
+                      {loading ? "Saving..." : "Save Rename"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/each}
+        {#if unpushedCommits.length === 0}<div class="empty">No local commits to rename or push</div>{/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- STAGED SECTION (25%) -->
+
   <div class="section staged-sec" class:collapsed={collapsed.staged}>
-    <div class="header" on:click={() => toggleCollapse('staged')}>
+    <div 
+        class="header" 
+        on:click={() => toggleCollapse('staged')}
+        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapse('staged')}
+        role="button"
+        tabindex="0"
+    >
       <span class="chevron">{collapsed.staged ? '▶' : '▼'}</span>
       <span class="title">Staged ({stagedFiles.length})</span>
     </div>
+
     {#if !collapsed.staged}
       <div class="items">
         {#each stagedFiles as file}
@@ -84,10 +194,17 @@
 
   <!-- UNSTAGED SECTION (40%) -->
   <div class="section unstaged-sec" class:collapsed={collapsed.unstaged}>
-    <div class="header" on:click={() => toggleCollapse('unstaged')}>
+    <div 
+        class="header" 
+        on:click={() => toggleCollapse('unstaged')}
+        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapse('unstaged')}
+        role="button"
+        tabindex="0"
+    >
       <span class="chevron">{collapsed.unstaged ? '▶' : '▼'}</span>
       <span class="title">Unstaged ({unstagedFiles.length})</span>
     </div>
+
     {#if !collapsed.unstaged}
       <div class="items">
         {#each unstagedFiles as file}
@@ -109,10 +226,17 @@
 
   <!-- EXCLUDED SECTION (25%) -->
   <div class="section excluded-sec" class:collapsed={collapsed.excluded}>
-    <div class="header" on:click={() => toggleCollapse('excluded')}>
+    <div 
+        class="header" 
+        on:click={() => toggleCollapse('excluded')}
+        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapse('excluded')}
+        role="button"
+        tabindex="0"
+    >
       <span class="chevron">{collapsed.excluded ? '▶' : '▼'}</span>
       <span class="title">Local Exclusions ({excludes.length})</span>
     </div>
+
     {#if !collapsed.excluded}
       <div class="items">
         {#each excludes as pattern}
@@ -142,13 +266,23 @@
               {stagedFiles.length} staged
           </div>
           <button 
-            class="commit-btn" 
+            class:commit-btn={true} 
             on:click={handleCommit} 
             disabled={loading || !commitMessage.trim() || stagedFiles.length === 0}
           >
             🚀 Commit
           </button>
+          {#if unpushedCommits.length > 0}
+              <button 
+                class="push-btn" 
+                on:click={handlePush} 
+                disabled={loading}
+              >
+                ↑ Push ({unpushedCommits.length})
+              </button>
+          {/if}
       </div>
+
   </div>
 </div>
 
@@ -171,9 +305,11 @@
   }
 
   /* Percentage Heights (Adjusted to leave room for footer) */
-  .staged-sec { height: 32%; }
-  .unstaged-sec { height: 38%; }
-  .excluded-sec { height: 20%; border-bottom: none; }
+  .unpushed-sec { height: 28%; min-height: 150px; }
+  .staged-sec { height: 20%; }
+  .unstaged-sec { height: 26%; }
+  .excluded-sec { height: 14%; border-bottom: none; }
+
 
   .section.collapsed {
       height: 40px !important;
@@ -228,6 +364,21 @@
   .commit-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
   .commit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+  .push-btn {
+      background: #238636;
+      color: #fff;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+  }
+  .push-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+  .push-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
   .header {
     padding: 12px 16px;
     font-size: 11px;
@@ -244,9 +395,15 @@
     flex-shrink: 0;
   }
   .header:hover { background: var(--bdr); color: var(--tx-b); }
-  .staged-sec .header { color: var(--acc); background: rgba(129, 140, 248, 0.05); }
+  .staged-sec .header { color: var(--acc); background: var(--acc-bg); }
 
   .chevron { font-size: 8px; opacity: 0.5; width: 10px; }
+
+  .unpushed-sec .header { color: #58a6ff; background: rgba(88, 166, 255, 0.05); }
+  .unpushed-msg { opacity: 0.9; }
+  .hash-label { font-size: 9px; color: var(--tx-d); font-family: 'JetBrains Mono', monospace; opacity: 0.8; }
+  .status.UP { color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
+
 
   .items {
     flex: 1;
@@ -259,6 +416,33 @@
   .file-row { display: flex; align-items: center; border-radius: 4px; transition: all 0.15s; margin-bottom: 1px; }
   .file-row:hover { background: var(--surface-h); }
   .file-row.active { background: var(--acc-bg); }
+
+  .commit-row {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+
+  .commit-row.editing {
+    background: rgba(88, 166, 255, 0.06);
+    border: 1px solid rgba(88, 166, 255, 0.18);
+  }
+
+  .commit-summary {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .commit-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 8px;
+    flex-shrink: 0;
+  }
 
   .file-item {
     flex: 1;
@@ -290,6 +474,10 @@
     border-radius: 4px;
   }
   .action-btn:hover { background: rgba(255,255,255,0.05); }
+  .action-btn.rename { opacity: 0; transition: opacity 0.2s, background 0.2s, color 0.2s; }
+  .commit-row:hover .action-btn.rename,
+  .commit-row.editing .action-btn.rename { opacity: 1; }
+  .action-btn.rename:hover { color: var(--acc); }
   .action-btn.stage:hover { color: var(--acc); }
   .action-btn.unstage { opacity: 0; }
   .file-row:hover .action-btn.unstage { opacity: 1; }
@@ -297,15 +485,69 @@
   .action-btn.remove-exclude { opacity: 0; }
   .file-row:hover .action-btn.remove-exclude { opacity: 1; }
 
+  .rename-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 10px 12px 38px;
+  }
+
+  .rename-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tx-d);
+  }
+
+  .rename-input {
+    width: 100%;
+    min-height: 88px;
+    resize: vertical;
+    border-radius: 8px;
+    border: 1px solid rgba(88, 166, 255, 0.18);
+    background: rgba(0, 0, 0, 0.16);
+    color: var(--tx-b);
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    font-family: inherit;
+    outline: none;
+  }
+
+  .rename-input:focus {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.18);
+  }
+
+  .rename-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .rename-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rename-hint {
+    font-size: 10px;
+    color: var(--tx-d);
+  }
+
   .status {
     width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
     border-radius: 3px; font-size: 9px; font-weight: 800; flex-shrink: 0;
   }
-  .status.M { color: #d29922; background: rgba(210, 153, 34, 0.1); }
-  .status.A { color: #3fb950; background: rgba(63, 185, 80, 0.1); }
-  .status.D { color: #f85149; background: rgba(248, 81, 73, 0.1); }
-  .status.\? { color: #7d8590; background: rgba(125, 133, 144, 0.1); }
-  .status.X { color: var(--tx-d); background: rgba(255,255,255,0.05); }
+  .status.M { color: var(--amb); background: var(--amb-bg); }
+  .status.A { color: var(--grn); background: var(--grn-bg); }
+  .status.D { color: var(--red); background: rgba(248, 81, 73, 0.1); }
+  .status.\? { color: var(--tx-d); background: var(--surface-h); }
+  .status.X { color: var(--tx-d); background: var(--surface-h); }
 
   .path { font-size: 11px; color: var(--tx-b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
 </style>

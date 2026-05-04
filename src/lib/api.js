@@ -6,13 +6,54 @@ export function setActiveRepo(path) {
   currentRepoPath = path;
 }
 
+function stripHtml(text = "") {
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getHttpErrorMessage(path, status, rawBody = "") {
+  if (status === 404 && path === "/rename-commit") {
+    return "Rename commit is unavailable on the current backend. Restart the Git Squash UI dev server and try again.";
+  }
+
+  const bodyText = stripHtml(rawBody);
+  if (bodyText) return bodyText;
+  return `Request failed (${status}).`;
+}
+
 async function request(path, opts = {}) {
   const headers = { ...opts.headers };
   if (currentRepoPath) {
     headers["X-Repo-Path"] = currentRepoPath;
   }
-  const res = await fetch(`${BASE}${path}`, { ...opts, headers });
-  return res.json();
+
+  try {
+    const res = await fetch(`${BASE}${path}`, { ...opts, headers });
+    const rawBody = await res.text();
+
+    let data = null;
+    if (rawBody) {
+      try {
+        data = JSON.parse(rawBody);
+      } catch {
+        data = null;
+      }
+    }
+
+    if (!res.ok) {
+      if (data?.error) return data;
+      return { error: getHttpErrorMessage(path, res.status, rawBody) };
+    }
+
+    if (data !== null) return data;
+    return rawBody ? { ok: true, raw: rawBody } : { ok: true };
+  } catch (error) {
+    return { error: error?.message || "Request failed." };
+  }
 }
 
 export function getInfo() {
@@ -23,13 +64,14 @@ export function getCommits(base) {
   return request(`/commits?base=${encodeURIComponent(base)}`);
 }
 
-export function squash(base, fixupIndices) {
+export function squash(base, fixupIndices, customMessage) {
   return request("/squash", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base, fixup_indices: fixupIndices }),
+    body: JSON.stringify({ base, fixup_indices: fixupIndices, custom_message: customMessage }),
   });
 }
+
 
 export function undoSquash() {
   return request("/undo", { method: "POST" });
@@ -139,6 +181,14 @@ export function commit(message) {
   });
 }
 
+export function renameCommitMessage(hash, message) {
+  return request("/rename-commit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hash, message }),
+  });
+}
+
 export function getWorkingDiff(path, staged) {
   return request("/working-diff", {
     method: "POST",
@@ -164,5 +214,29 @@ export function updateTabs(tabs) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tabs }),
+  });
+}
+
+export function updateSettings(settings) {
+  return request("/update-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ settings }),
+  });
+}
+
+export function push(branch) {
+  return request("/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
+  });
+}
+
+export function forcePush(branch) {
+  return request("/force-push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
   });
 }

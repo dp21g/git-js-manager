@@ -5,8 +5,11 @@
   export let commits = [];
   export let selected = new Set();
   export let mode = "squash"; // squash | diff
+  export let squashMessage = "";
 
   const dispatch = createEventDispatcher();
+// ... (omitting middle part as I'm using replace_file_content)
+
 
   $: keepCount = commits.length - selected.size;
   $: squashCount = selected.size + (selected.size > 0 ? 1 : 0);
@@ -61,6 +64,13 @@
         ↩ Reverse {selected.size === commits.length - 1 && mode === 'squash' ? 'All' : 'Selected'}
       </button>
     {/if}
+    
+    {#if mode === 'squash'}
+      <button class="btn btn-danger btn-sm" on:click={() => dispatch('undo')}>
+        ↩ Undo Last Squash
+      </button>
+    {/if}
+
   </div>
   <div class="stats">
     {#if mode === 'squash'}
@@ -80,8 +90,8 @@
   {#each commits as commit, i}
     <CommitRow
       {commit}
-      index={i}
       isBase={i === commits.length - 1}
+
       {mode}
       selected={selected.has(i)}
       on:click={() => toggle(i)}
@@ -93,15 +103,35 @@
 <!-- Action buttons -->
 {#if mode === 'squash'}
   <div class="actions">
-    <button
-      class="btn btn-primary"
-      disabled={selected.size === 0}
-      on:click={() => dispatch("squash")}
-    >
-      Squash {squashCount} commit{squashCount !== 1 ? "s" : ""}
-    </button>
+    <div class="squash-message-container">
+      <label for="squash-msg">Final Commit Message (optional)</label>
+      <textarea 
+        id="squash-msg"
+        bind:value={squashMessage} 
+        placeholder="Defaults to the oldest commit message in the group..."
+      ></textarea>
+    </div>
+
+    <div class="main-actions">
+      <button
+        class="btn btn-primary btn-lg squash-btn"
+        disabled={selected.size === 0}
+        on:click={() => dispatch("squash")}
+      >
+        Squash {squashCount} commit{squashCount !== 1 ? "s" : ""}
+      </button>
+
+      <button
+        class="btn btn-danger btn-lg force-push-btn"
+        on:click={() => dispatch("force-push")}
+      >
+        Force Push (Fix Remote)
+      </button>
+    </div>
   </div>
+
 {/if}
+
 
 <style>
   .toolbar {
@@ -126,10 +156,58 @@
   .list { border-radius: 8px; border: 1px solid var(--bdr); overflow: hidden; background: var(--surface); }
 
   .actions {
-    margin-top: 20px;
+    margin-top: 24px;
     display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
   }
+
+  .squash-message-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .squash-message-container label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--tx-d);
+    letter-spacing: 0.5px;
+  }
+
+  .squash-message-container textarea {
+    background: var(--surface);
+    border: 1px solid var(--bdr);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--tx-b);
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .squash-message-container textarea:focus {
+    border-color: var(--acc);
+  }
+
+  .btn-lg {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+
+  .main-actions {
+      display: flex;
+      gap: 12px;
+  }
+
+  .squash-btn { flex: 2; }
+  .force-push-btn { flex: 1; font-weight: 800; border: 2px solid var(--red) !important; background: transparent !important; color: var(--red) !important; }
+  .force-push-btn:hover { background: var(--red) !important; color: white !important; }
+
+
 </style>

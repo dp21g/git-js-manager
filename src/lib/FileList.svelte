@@ -28,9 +28,6 @@
 </script>
 
 <div class="file-list">
-  <div class="header">
-    Changed Files ({files.length})
-  </div>
   <div class="items">
     {#each files as file}
       <div class="file-row" class:active={selectedFile === file.path}>

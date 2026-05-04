@@ -1,8 +1,8 @@
 <script>
   import { createEventDispatcher } from "svelte";
   export let commit;
-  export let index;
   export let selected = false;
+
   export let isBase = false;
   export let mode = "squash";
 
@@ -101,9 +101,9 @@
     letter-spacing: 1px; padding: 2px 7px; border-radius: 3px;
     width: 48px; text-align: center; flex-shrink: 0;
   }
-  .pick { color: var(--grn); background: rgba(74, 222, 128, 0.1); }
-  .fixup { color: var(--amb); background: rgba(251, 191, 36, 0.1); }
-  .diff { color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
+  .pick { color: var(--grn); background: var(--grn-bg); }
+  .fixup { color: var(--amb); background: var(--amb-bg); }
+  .diff { color: var(--acc); background: var(--acc-bg); }
 
   .center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .hash { font-size: 12px; color: var(--acc); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; opacity: 0.8; }
@@ -129,8 +129,8 @@
 
   .badge {
     font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--grn); background: rgba(74, 222, 128, 0.1);
-    border: 1px solid rgba(74, 222, 128, 0.2);
+    color: var(--grn); background: var(--grn-bg);
+    border: 1px solid var(--grn-bg);
     padding: 2px 8px; border-radius: 3px; flex-shrink: 0;
   }
 </style>
