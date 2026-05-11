@@ -3,16 +3,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node --watch server/index.mjs\" \"vite\"",
-    "build": "vite build",
+    "dev": "npm run tauri:dev",
+    "dev:browser": "concurrently \"node --watch server/index.mjs\" \"vite\"",
+    "dev:web": "vite",
+    "build": "npm run tauri:build",
+    "build:web": "vite build",
     "start": "node server/index.mjs",
-    "setup": "npm install"
+    "setup": "npm install",
+    "tauri": "node ./node_modules/@tauri-apps/cli/tauri.js",
+    "tauri:build": "node ./node_modules/@tauri-apps/cli/tauri.js build --bundles app",
+    "tauri:dev": "node ./node_modules/@tauri-apps/cli/tauri.js dev",
+    "tauri:icon": "node ./node_modules/@tauri-apps/cli/tauri.js icon ./src-tauri/app-icon.svg -o ./src-tauri/icons",
+    "tauri:prepare": "node ./scripts/prepare-tauri-assets.mjs"
   },
   "dependencies": {
     "express": "^4.21.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "@tauri-apps/cli": "^2.10.1",
     "concurrently": "^8.2.0",
     "svelte": "^4.2.0",
     "vite": "^5.4.0"

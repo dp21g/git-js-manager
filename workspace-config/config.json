@@ -1,103 +1,173 @@
 {
   "recentDirs": [
-    "/Users/dp015035/Github/git-squash-ui",
+    "/Users/dp015035/Github/charting-ui-3",
+    "/Users/dp015035/Github/charting-ui",
+    "/Users/dp015035/Github/proactive-pca",
+    "/Users/dp015035/Github/charting-ui-2",
     "/Users/dp015035/Github/ohai-components-ui",
-    "/Users/dp015035/Github/common-ui-dev",
-    "/Users/dp015035/Github/charting-ui"
+    "/Users/dp015035/Github/git-squash-ui",
+    "/Users/dp015035/Github/common-ui-dev"
   ],
   "favouriteDirs": [
     "/Users/dp015035/Github/charting-ui",
     "/Users/dp015035/Github/common-ui-dev"
   ],
-  "lastRepo": "/Users/dp015035/Github/git-squash-ui",
+  "lastRepo": "/Users/dp015035/Github/charting-ui-3",
   "repoStates": {
     "/Users/dp015035/Github/charting-ui": {
-      "mode": "commit",
+      "mode": "squash",
       "baseBranch": "master",
       "selected": [],
-      "compareBranch1": "master",
-      "compareBranch2": "feature/dhavalpa-EHRM-102953-disable-ohpp-navigation-on-mobile-layout",
+      "compareBranch1": "",
+      "compareBranch2": "master",
       "selectedFile": null,
-      "lastUpdate": 1777904641666,
-      "sidebarWidth": 371,
+      "lastUpdate": 1778502245783,
+      "sidebarWidth": 300,
       "collapsedSections": {
         "staged": false,
         "unstaged": false,
-        "excluded": false
+        "excluded": false,
+        "stashes": true
       },
       "diffSplitH": 50,
       "logPanelPosition": {
         "x": null,
         "y": null
       },
-      "logPanelFloating": true
+      "logPanelFloating": false
     },
     "/Users/dp015035/Github/common-ui-dev": {
-      "mode": "commit",
+      "mode": "squash",
       "baseBranch": "master",
       "selected": [],
-      "compareBranch1": "master",
-      "compareBranch2": "feature/dhavalpa-EHRM-102953-disable-ohpp-navigation-on-mobile-layout",
+      "compareBranch1": "",
+      "compareBranch2": "",
       "selectedFile": null,
-      "sidebarWidth": 371,
+      "sidebarWidth": 300,
       "collapsedSections": {
         "staged": false,
         "unstaged": false,
-        "excluded": false
+        "excluded": false,
+        "stashes": true
       },
-      "lastUpdate": 1777904938009,
+      "lastUpdate": 1778499532473,
       "diffSplitH": 50,
       "logPanelPosition": {
         "x": null,
         "y": null
       },
-      "logPanelFloating": true
+      "logPanelFloating": false
     },
     "/Users/dp015035/Github/ohai-components-ui": {
-      "mode": "diff",
+      "mode": "squash",
       "baseBranch": "master",
-      "selected": [
-        0
-      ],
-      "compareBranch1": "master",
-      "compareBranch2": "feature/dhavalpa-EHRM-67372-add-charting-agent-support",
-      "selectedFile": "compliance/26.05/EHRM/EHRM-102953.json",
-      "sidebarWidth": 600,
-      "diffSplitH": 22.396449929863742,
+      "selected": [],
+      "compareBranch1": "",
+      "compareBranch2": "",
+      "selectedFile": null,
+      "sidebarWidth": 300,
+      "diffSplitH": 50,
       "collapsedSections": {
         "staged": false,
         "unstaged": false,
-        "excluded": true,
-        "unpushed": false
+        "excluded": false,
+        "stashes": true
       },
       "logPanelPosition": {
         "x": null,
         "y": null
       },
-      "lastUpdate": 1777905032268,
+      "lastUpdate": 1778502211730,
       "logPanelFloating": false
     },
     "/Users/dp015035/Github/git-squash-ui": {
       "mode": "commit",
       "baseBranch": "master",
       "selected": [],
-      "compareBranch1": "master",
-      "compareBranch2": "feature/dhavalpa-EHRM-67372-add-charting-agent-support",
+      "compareBranch1": "",
+      "compareBranch2": "",
       "selectedFile": null,
-      "sidebarWidth": 600,
-      "diffSplitH": 22.396449929863742,
+      "sidebarWidth": 385,
+      "diffSplitH": 50,
       "collapsedSections": {
         "staged": false,
         "unstaged": false,
-        "excluded": true,
-        "unpushed": false
+        "excluded": false,
+        "stashes": true
       },
       "logPanelPosition": {
         "x": null,
         "y": null
       },
       "logPanelFloating": false,
-      "lastUpdate": 1777905180320
+      "lastUpdate": 1778502301009
+    },
+    "/Users/dp015035/Github/charting-ui-2": {
+      "mode": "compare",
+      "baseBranch": "master",
+      "selected": [],
+      "compareBranch1": "master",
+      "compareBranch2": "feature/dhavalpa-EHRM-31137-devsite-offline-mode",
+      "selectedFile": ".gitignore",
+      "sidebarWidth": 600,
+      "diffSplitH": 22.396449929863742,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": true,
+        "stashes": true,
+        "unpushed": true
+      },
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": false,
+      "lastUpdate": 1778152354855
+    },
+    "/Users/dp015035/Github/proactive-pca": {
+      "mode": "commit",
+      "baseBranch": "main",
+      "selected": [],
+      "compareBranch1": "",
+      "compareBranch2": "",
+      "selectedFile": null,
+      "sidebarWidth": 300,
+      "diffSplitH": 50,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": false,
+        "stashes": true
+      },
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": false,
+      "lastUpdate": 1778502265152
+    },
+    "/Users/dp015035/Github/charting-ui-3": {
+      "mode": "commit",
+      "baseBranch": "master",
+      "selected": [],
+      "compareBranch1": "",
+      "compareBranch2": "",
+      "selectedFile": null,
+      "sidebarWidth": 300,
+      "diffSplitH": 50,
+      "collapsedSections": {
+        "staged": false,
+        "unstaged": false,
+        "excluded": false,
+        "stashes": true
+      },
+      "logPanelPosition": {
+        "x": null,
+        "y": null
+      },
+      "logPanelFloating": false,
+      "lastUpdate": 1778502255053
     }
   },
   "tabs": [
@@ -118,10 +188,75 @@
       "repoPath": "/Users/dp015035/Github/git-squash-ui",
       "name": "git-squash-ui",
       "active": true
+    },
+    {
+      "id": "tab-hpyjb9por",
+      "repoPath": "/Users/dp015035/Github/ohai-components-ui",
+      "name": "ohai-components-ui",
+      "active": false
+    },
+    {
+      "id": "tab-zq3p5yk8s",
+      "repoPath": "/Users/dp015035/Github/charting-ui-2",
+      "name": "charting-ui-2",
+      "active": false
+    },
+    {
+      "id": "tab-jy5d86psk",
+      "repoPath": "/Users/dp015035/Github/proactive-pca",
+      "name": "proactive-pca",
+      "active": false
+    },
+    {
+      "id": "tab-cnmfwfp0m",
+      "repoPath": "/Users/dp015035/Github/charting-ui",
+      "name": "charting-ui",
+      "active": false
+    },
+    {
+      "id": "tab-s65ta3q7c",
+      "repoPath": "/Users/dp015035/Github/charting-ui-3",
+      "name": "charting-ui-3",
+      "active": false
+    },
+    {
+      "id": "tab-7reh4v9rl",
+      "repoPath": "/Users/dp015035/Github/charting-ui-3",
+      "name": "charting-ui-3",
+      "active": false
     }
   ],
   "settings": {
-    "theme": "dark",
-    "wideDrawerVisible": false
+    "theme": "medium",
+    "wideDrawerVisible": true,
+    "wideDrawerWidth": 460,
+    "zoomLevel": 1,
+    "drawerRepoState": {
+      "/Users/dp015035/Github/ohai-components-ui": {
+        "remoteExpanded": true,
+        "expanded": false
+      },
+      "tab-hpyjb9por": {
+        "expanded": true,
+        "remoteExpanded": false,
+        "localExpanded": true
+      },
+      "tab-0hq1edr4a": {
+        "expanded": true
+      },
+      "tab-0h957ul2z": {
+        "expanded": false
+      },
+      "tab-eedp81wwt": {
+        "expanded": false,
+        "localExpanded": true
+      },
+      "tab-s65ta3q7c": {
+        "expanded": true
+      },
+      "tab-jy5d86psk": {
+        "expanded": true
+      }
+    }
   }
 }

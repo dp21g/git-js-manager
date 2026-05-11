@@ -1,11 +1,15 @@
 <script>
   import { createEventDispatcher } from "svelte";
+  import StashList from "./StashList.svelte";
 
   export let files = [];
   export let unpushedCommits = [];
+  export let stashes = [];
   export let excludes = [];
   export let selectedFile = null;
-  export let collapsed = { unpushed: false, staged: false, unstaged: false, excluded: false };
+  export let selectedStashRef = "";
+  export let applyingStashRef = "";
+  export let collapsed = { unpushed: false, stashes: true, staged: false, unstaged: false, excluded: false };
 
   export let commitMessage = "";
   export let loading = false;
@@ -15,7 +19,7 @@
   const dispatch = createEventDispatcher();
 
   $: stagedFiles = files.filter(f => f.staged);
-  $: unstagedFiles = files.filter(f => !f.staged);
+  $: unstagedFiles = files.filter(f => f.unstaged || f.untracked);
   $: if (editingCommitHash && !unpushedCommits.some((commit) => commit.hash === editingCommitHash)) {
       editingCommitHash = null;
       renameMessage = "";
@@ -29,6 +33,11 @@
     e.stopPropagation();
     const action = file.staged ? 'unstage' : 'stage';
     dispatch("toggle-stage", { action, path: file.path });
+  }
+
+  function stageFile(e, file) {
+    e.stopPropagation();
+    dispatch("toggle-stage", { action: 'stage', path: file.path });
   }
 
   function excludeFile(e, file) {
@@ -86,6 +95,11 @@
       if (f.untracked) return '?';
       const letter = f.staged ? f.x : f.y;
       return letter !== ' ' ? letter : (f.x !== ' ' ? f.x : f.y);
+  }
+
+  function getUnstagedLetter(f) {
+      if (f.untracked) return '?';
+      return f.y !== ' ' ? f.y : f.x;
   }
 </script>
 
@@ -162,8 +176,6 @@
     {/if}
   </div>
 
-  <!-- STAGED SECTION (25%) -->
-
   <div class="section staged-sec" class:collapsed={collapsed.staged}>
     <div 
         class="header" 
@@ -210,12 +222,15 @@
         {#each unstagedFiles as file}
           <div class="file-row" class:active={selectedFile?.path === file.path && !selectedFile?.staged}>
             <button class="file-item" on:click={() => select({ path: file.path, staged: false })}>
-              <span class="status {getLetter(file)}" title={getStatusLabel(file.x, file.y)}>{getLetter(file)}</span>
+              <span class="status {getUnstagedLetter(file)}" title={getStatusLabel(file.x, file.y)}>{getUnstagedLetter(file)}</span>
               <span class="path">{file.path}</span>
+              {#if file.staged}
+                <span class="also-staged-badge" title="Also has staged changes">staged</span>
+              {/if}
             </button>
             <div class="row-actions">
               <button class="action-btn exclude" on:click={(e) => excludeFile(e, file)} title="Exclude">👁️‍🗨️</button>
-              <button class="action-btn stage" on:click={(e) => toggleStage(e, file)} title="Stage">+</button>
+              <button class="action-btn stage" on:click={(e) => stageFile(e, file)} title="Stage">+</button>
             </div>
           </div>
         {/each}
@@ -251,6 +266,20 @@
         {#if excludes.length === 0}<div class="empty">No exclusions</div>{/if}
       </div>
     {/if}
+  </div>
+
+  <div class="section stash-sec" class:collapsed={collapsed.stashes}>
+    <StashList
+      embedded={true}
+      {stashes}
+      selectedRef={selectedStashRef}
+      collapsed={collapsed.stashes}
+      loading={Boolean(applyingStashRef)}
+      applyingRef={applyingStashRef}
+      on:toggle-collapse={() => toggleCollapse('stashes')}
+      on:select={(e) => dispatch("select-stash", e.detail)}
+      on:apply={(e) => dispatch("apply-stash", e.detail)}
+    />
   </div>
 
   <!-- COMMIT FOOTER -->
@@ -304,20 +333,21 @@
       border-bottom: 1px solid var(--bdr);
   }
 
-  /* Percentage Heights (Adjusted to leave room for footer) */
-  .unpushed-sec { height: 28%; min-height: 150px; }
-  .staged-sec { height: 20%; }
-  .unstaged-sec { height: 26%; }
-  .excluded-sec { height: 14%; border-bottom: none; }
+  .unpushed-sec { flex: 2.2 1 0; min-height: 140px; }
+  .staged-sec { flex: 1.4 1 0; min-height: 96px; }
+  .unstaged-sec { flex: 1.9 1 0; min-height: 112px; }
+  .excluded-sec { flex: 0.9 1 0; min-height: 76px; }
+  .stash-sec { flex: 2.8 1 0; min-height: 160px; border-bottom: none; }
 
 
   .section.collapsed {
-      height: 40px !important;
+      height: 32px !important;
       flex: none !important;
+      min-height: 32px !important;
   }
 
   .commit-footer {
-      height: 120px;
+      height: 100px;
       flex-shrink: 0;
       background: var(--surface-h);
       border-top: 2px solid var(--bdr-l);
@@ -380,8 +410,8 @@
 
 
   .header {
-    padding: 12px 16px;
-    font-size: 11px;
+    padding: 8px 12px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -389,13 +419,13 @@
     background: var(--surface-h);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     user-select: none;
     flex-shrink: 0;
   }
   .header:hover { background: var(--bdr); color: var(--tx-b); }
-  .staged-sec .header { color: var(--acc); background: var(--acc-bg); }
+  .staged-sec .header { color: var(--acc-soft-fg); background: var(--acc-bg); }
 
   .chevron { font-size: 8px; opacity: 0.5; width: 10px; }
 

@@ -3,6 +3,10 @@
 
   export let files = [];
   export let selectedFile = null;
+  export let actionIcon = "↩";
+  export let actionTitle = "Reverse all changes to this file from selection";
+  export let actionTone = "reverse";
+  export let showAction = true;
 
   const dispatch = createEventDispatcher();
 
@@ -10,8 +14,9 @@
     dispatch("select", file);
   }
 
-  function handleReverseFile(e, file) {
+  function handleAction(e, file) {
     e.stopPropagation();
+    dispatch("action", file);
     dispatch("reverse-file", file);
   }
 
@@ -40,9 +45,16 @@
           </span>
           <span class="path">{file.path}</span>
         </button>
-        <button class="reverse-file-btn" on:click={(e) => handleReverseFile(e, file.path)} title="Reverse all changes to this file from selection">
-          ↩
-        </button>
+        {#if showAction}
+          <button
+            class="row-action-btn"
+            class:apply={actionTone === "apply"}
+            on:click={(e) => handleAction(e, file.path)}
+            title={actionTitle}
+          >
+            {actionIcon}
+          </button>
+        {/if}
       </div>
     {/each}
   </div>
@@ -105,7 +117,7 @@
     min-width: 0;
   }
 
-  .reverse-file-btn {
+  .row-action-btn {
     background: transparent;
     border: none;
     color: var(--tx-d);
@@ -119,12 +131,16 @@
     justify-content: center;
   }
 
-  .file-row:hover .reverse-file-btn {
+  .file-row:hover .row-action-btn {
     opacity: 1;
   }
 
-  .reverse-file-btn:hover {
+  .row-action-btn:hover {
     color: var(--red);
+  }
+
+  .row-action-btn.apply:hover {
+    color: var(--grn);
   }
 
   .status {

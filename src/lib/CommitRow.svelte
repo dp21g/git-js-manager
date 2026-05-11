@@ -103,7 +103,7 @@
   }
   .pick { color: var(--grn); background: var(--grn-bg); }
   .fixup { color: var(--amb); background: var(--amb-bg); }
-  .diff { color: var(--acc); background: var(--acc-bg); }
+  .diff { color: var(--acc-soft-fg); background: var(--acc-bg); }
 
   .center { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .hash { font-size: 12px; color: var(--acc); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; opacity: 0.8; }

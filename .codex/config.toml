@@ -1,0 +1,27 @@
+# .codex/config.toml (Project-local configuration)
+
+# 1. Select the default profile for this repository
+profile = "deepseek-v4"
+
+# 2. Define the DeepSeek Provider
+[model_providers.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/v1"
+# Codex reads the API key from your environment variables for security.
+# Ensure DEEPSEEK_API_KEY is set in your shell or .env file.
+env_key = "sk-0e3cf42e2c23453d87916fe0ca55ebda"
+wire_api = "chat"
+
+# 3. Create a profile specifically for DeepSeek V4 Pro
+[profiles."deepseek-v4"]
+model = "deepseek-v4-pro"
+model_provider = "deepseek"
+
+# Use the full 1M context window supported by V4
+model_context_window = 1048576
+
+# Set reasoning effort to 'high' or 'max' to leverage V4's thinking capabilities
+model_reasoning_effort = "high"
+
+# Optional: Set a project-specific approval policy
+approval_policy = "on-request"

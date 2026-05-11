@@ -1,17 +1,43 @@
 <script>
   import { createEventDispatcher } from "svelte";
   import { updateSettings } from "./api.js";
+  import {
+    DEFAULT_SETTINGS,
+    THEME_OPTIONS,
+    ZOOM_STEP,
+    clampZoomLevel,
+    getZoomLabel,
+    normalizeUiSettings
+  } from "../../server/ui-settings.mjs";
 
-  export let settings = { theme: "dark" };
+  export let settings = { ...DEFAULT_SETTINGS };
   export let isOpen = false;
 
   const dispatch = createEventDispatcher();
 
-  async function setTheme(theme) {
-    const current = settings || { theme: 'dark' };
-    const nextSettings = { ...current, theme };
-    await updateSettings({ theme });
+  async function updatePanelSettings(patch) {
+    const nextSettings = normalizeUiSettings({
+      ...(settings || DEFAULT_SETTINGS),
+      ...patch
+    });
+
+    await updateSettings(patch);
     dispatch("change", nextSettings);
+  }
+
+  function setTheme(theme) {
+    updatePanelSettings({ theme });
+  }
+
+  function adjustZoom(direction) {
+    const nextZoom = clampZoomLevel(
+      (settings?.zoomLevel ?? DEFAULT_SETTINGS.zoomLevel) + direction * ZOOM_STEP
+    );
+    updatePanelSettings({ zoomLevel: nextZoom });
+  }
+
+  function resetZoom() {
+    updatePanelSettings({ zoomLevel: DEFAULT_SETTINGS.zoomLevel });
   }
 
   function close() {
@@ -23,37 +49,47 @@
   }
 </script>
 
+<svelte:window on:keydown={handleKeydown} />
+
 {#if isOpen}
-  {@const theme = settings?.theme || 'dark'}
-  <div class="overlay" on:click={close} on:keydown={handleKeydown}>
-    <div class="panel" on:click|stopPropagation>
+  {@const uiSettings = normalizeUiSettings(settings)}
+  <div class="overlay">
+    <button class="overlay-dismiss" on:click={close} aria-label="Close settings panel"></button>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="appearance-title">
       <div class="header">
-        <h3>Settings</h3>
+        <h3 id="appearance-title">Appearance</h3>
         <button class="close-btn" on:click={close}>×</button>
       </div>
 
       <div class="section">
-        <label>UI Theme</label>
+        <div class="section-label">UI Theme</div>
         <div class="theme-options">
-          <button 
-            class="theme-btn dark" 
-            class:active={theme === 'dark'}
-            on:click={() => setTheme('dark')}
-          >
-            <span class="icon">🌙</span> Dark Mode
-          </button>
-          <button 
-            class="theme-btn light" 
-            class:active={theme === 'light'}
-            on:click={() => setTheme('light')}
-          >
-            <span class="icon">☀️</span> Light Mode
-          </button>
+          {#each THEME_OPTIONS as option}
+            <button
+              class="theme-btn"
+              class:active={uiSettings.theme === option.id}
+              on:click={() => setTheme(option.id)}
+            >
+              <span class="theme-name">{option.label}</span>
+              <span class="theme-description">{option.description}</span>
+            </button>
+          {/each}
         </div>
       </div>
 
+      <div class="section">
+        <div class="section-label">Zoom</div>
+        <div class="zoom-row">
+          <button class="zoom-btn" on:click={() => adjustZoom(-1)} aria-label="Zoom out">−</button>
+          <div class="zoom-value">{getZoomLabel(uiSettings.zoomLevel)}</div>
+          <button class="zoom-btn" on:click={() => adjustZoom(1)} aria-label="Zoom in">+</button>
+          <button class="zoom-reset" on:click={resetZoom}>Reset</button>
+        </div>
+        <p class="hint">Shortcut: Cmd/Ctrl with `+`, `-`, or `0`.</p>
+      </div>
+
       <div class="footer">
-        <p>Git Squash UI v1.0.0</p>
+        <p>Stored in workspace config and restored on next launch.</p>
       </div>
     </div>
   </div>
@@ -62,70 +98,88 @@
 <style>
   .overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    inset: 0;
     z-index: 1000;
     display: flex;
     justify-content: flex-end;
   }
 
+  .overlay-dismiss {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.42);
+    padding: 0;
+  }
+
   .panel {
+    position: relative;
+    z-index: 1;
     width: 320px;
     height: 100%;
-    background: var(--surface);
+    background: var(--panel-bg);
     border-left: 1px solid var(--bdr);
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
-    padding: 24px;
+    box-shadow: -10px 0 28px var(--panel-shadow);
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    animation: slideIn 0.2s ease-out;
+    animation: slideIn 0.18s ease-out;
   }
 
   @keyframes slideIn {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+    from {
+      transform: translateX(100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
   }
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
   .header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     color: var(--tx-b);
+    letter-spacing: 0.02em;
   }
 
   .close-btn {
+    width: 28px;
+    height: 28px;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--tx-d);
-    font-size: 24px;
+    font-size: 20px;
     cursor: pointer;
-    padding: 4px;
     line-height: 1;
+    border-radius: var(--radius-sm);
   }
 
-  .close-btn:hover { color: var(--tx-b); }
+  .close-btn:hover {
+    background: var(--list-hover);
+    border-color: var(--bdr);
+    color: var(--tx-b);
+  }
 
   .section {
-    margin-bottom: 24px;
+    margin-bottom: 22px;
   }
 
-  .section label {
+  .section-label {
     display: block;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--tx-d);
-    margin-bottom: 12px;
-    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    letter-spacing: 0.08em;
   }
 
   .theme-options {
@@ -135,31 +189,95 @@
   }
 
   .theme-btn {
-    background: var(--bg);
+    width: 100%;
+    background: var(--panel-section-bg);
     border: 1px solid var(--bdr);
     color: var(--tx-b);
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: 12px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     text-align: left;
-    font-size: 13px;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.2s;
+    flex-direction: column;
+    gap: 2px;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
   }
 
-  .theme-btn:hover { background: var(--surface-h); border-color: var(--bdr-l); }
-  .theme-btn.active { border-color: var(--acc); background: var(--acc-bg); color: var(--acc); }
+  .theme-btn:hover {
+    background: var(--list-hover);
+    border-color: var(--bdr-l);
+  }
 
-  .icon { font-size: 16px; }
+  .theme-btn.active {
+    border-color: var(--acc);
+    background: var(--acc-bg);
+  }
+
+  .theme-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .theme-description {
+    font-size: 11px;
+    color: var(--tx-d);
+  }
+
+  .zoom-row {
+    display: grid;
+    grid-template-columns: 34px 1fr 34px auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .zoom-btn,
+  .zoom-reset {
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--bdr);
+    background: var(--panel-section-bg);
+    color: var(--tx-b);
+  }
+
+  .zoom-btn:hover,
+  .zoom-reset:hover {
+    background: var(--list-hover);
+    border-color: var(--bdr-l);
+  }
+
+  .zoom-value {
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--bdr);
+    background: var(--editor-inset-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tx-b);
+    font-family: var(--font-mono);
+  }
+
+  .zoom-reset {
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--tx-d);
+    line-height: 1.4;
+  }
 
   .footer {
     margin-top: auto;
-    padding-top: 24px;
+    padding-top: 16px;
     border-top: 1px solid var(--bdr);
     color: var(--tx-d);
     font-size: 11px;
-    text-align: center;
+    line-height: 1.4;
   }
 </style>

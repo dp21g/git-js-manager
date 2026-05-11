@@ -1,6 +1,34 @@
 import { Router } from "express";
 import os from "node:os";
-import { getInfo, getCommits, squash, undo, testGetBranches, getDiff, getFiles, compareBranches, reverseCommits, reversePatch, getStatus, stageFile, commit, renameCommitMessage, getWorkingDiff, getExcludes, manageExclude, push, forcePush } from "./git.mjs";
+import {
+  getInfo,
+  getCommits,
+  squash,
+  undo,
+  testGetBranches,
+  getDiff,
+  getFiles,
+  compareBranches,
+  reverseCommits,
+  reversePatch,
+  getStatus,
+  stageFile,
+  commit,
+  renameCommitMessage,
+  getWorkingDiff,
+  getExcludes,
+  manageExclude,
+  push,
+  forcePush,
+  getStashes,
+  getStashFiles,
+  getStashDiff,
+  applyStash,
+  switchBranch,
+  deleteBranch,
+  renameBranch,
+  runGitCommand,
+} from "./git.mjs";
 
 import { listDir, nativeDialog, isGitRepo } from "./folder-picker.mjs";
 import { readConfig, addRecentDir, toggleFavouriteDir, getConfigPath, saveRepoState, updateTabs, updateSettings } from "./config.mjs";
@@ -17,13 +45,24 @@ export function createRoutes(state) {
   // ── Repo info ────────────────────────────────────────────────────────
   router.get("/info", (req, res) => {
     const target = req.query.path || getTarget(req);
+    const includeRemotes = req.query.includeRemotes === "1" || req.query.includeRemotes === "true";
     if (!target) {
       return res.json({ needsRepo: true, home: os.homedir(), config: { ...readConfig(), configPath: getConfigPath() } });
     }
-    const info = getInfo(target);
+    const info = getInfo(target, state.logs, { includeRemotes });
     const config = readConfig();
     const repoState = config.repoStates?.[target] || null;
     res.json(info ? { ...info, config: { ...config, configPath: getConfigPath() }, repoState } : { error: "Not a git repository" });
+  });
+
+  router.get("/repo-state", (req, res) => {
+    const target = req.query.path || getTarget(req);
+    if (!target) {
+      return res.json({ needsRepo: true });
+    }
+
+    const config = readConfig();
+    res.json({ repoState: config.repoStates?.[target] || null });
   });
 
   // ── Commits ──────────────────────────────────────────────────────────
@@ -64,6 +103,53 @@ export function createRoutes(state) {
     const { branch1, branch2 } = req.body;
     if (!branch1 || !branch2) return res.json({ error: "Missing branches" });
     res.json(compareBranches(getTarget(req), branch1, branch2, state.logs));
+  });
+
+  router.get("/stashes", (req, res) => {
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    res.json(getStashes(getTarget(req), state.logs));
+  });
+
+  router.post("/stash-files", (req, res) => {
+    const { stashRef } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!stashRef) return res.json({ error: "Missing stash reference" });
+    res.json(getStashFiles(getTarget(req), stashRef, state.logs));
+  });
+
+  router.post("/stash-diff", (req, res) => {
+    const { stashRef, path } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!stashRef) return res.json({ error: "Missing stash reference" });
+    res.json(getStashDiff(getTarget(req), stashRef, path, state.logs));
+  });
+
+  router.post("/apply-stash", (req, res) => {
+    const { stashRef, path } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!stashRef) return res.json({ error: "Missing stash reference" });
+    res.json(applyStash(getTarget(req), stashRef, path, state.logs));
+  });
+
+  router.post("/switch-branch", (req, res) => {
+    const { branch, strategy, stashName } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!branch) return res.json({ error: "Missing branch name" });
+    res.json(switchBranch(getTarget(req), branch, strategy, stashName, state.logs));
+  });
+
+  router.post("/delete-branch", (req, res) => {
+    const { branch, deleteRemote } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!branch) return res.json({ error: "Missing branch name" });
+    res.json(deleteBranch(getTarget(req), branch, Boolean(deleteRemote), state.logs));
+  });
+
+  router.post("/rename-branch", (req, res) => {
+    const { oldName, newName } = req.body;
+    if (!getTarget(req)) return res.json({ error: "No repo selected" });
+    if (!oldName || !newName) return res.json({ error: "Missing branch name" });
+    res.json(renameBranch(getTarget(req), oldName, newName, state.logs));
   });
 
   router.post("/reverse", (req, res) => {
@@ -172,6 +258,28 @@ export function createRoutes(state) {
 
   router.get("/logs", (req, res) => {
     res.json({ logs: state.logs.list() });
+  });
+
+  router.post("/log-command", (req, res) => {
+    const { command, cwd, stdout, stderr, exitCode, durationMs } = req.body;
+    state.logs.command({
+      command: command || "",
+      cwd: cwd || "",
+      stdout: stdout || "",
+      stderr: stderr || "",
+      exitCode: Number.isFinite(exitCode) ? Number(exitCode) : null,
+      durationMs: Number.isFinite(durationMs) ? Number(durationMs) : null,
+      message: "Git command executed",
+    });
+    res.json({ ok: true });
+  });
+
+  router.post("/git-command", async (req, res) => {
+    const { command } = req.body;
+    if (!command) return res.json({ error: "No command provided" });
+    const target = getTarget(req);
+    if (!target) return res.json({ error: "No repo selected" });
+    res.json(await runGitCommand(target, command, state.logs));
   });
 
   router.post("/test-get-branches", (req, res) => {

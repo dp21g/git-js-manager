@@ -1,26 +1,29 @@
 <script>
   import { createEventDispatcher } from "svelte";
+  import ExecutionLogEntry from "./ExecutionLogEntry.svelte";
 
   export let logs = [];
   export let branchName = "";
   export let floatingEnabled = true;
 
   const dispatch = createEventDispatcher();
+  let bodyEl;
 
-  function formatTime(value) {
-    if (!value) return "--:--:--";
-    return new Date(value).toLocaleTimeString([], { hour12: false });
+  $: orderedLogs = logs;
+  $: if (orderedLogs.length && bodyEl) {
+    bodyEl.scrollTop = 0;
   }
 </script>
 
 <div class="logs-view">
   <div class="logs-header">
     <div class="logs-title-block">
-      <div class="logs-eyebrow">Execution History</div>
-      <h2>Logs</h2>
+      <div class="logs-eyebrow">Execution Console</div>
+      <h2>Command Transcript</h2>
       <div class="logs-subtitle">
-        <span class="branch">🌿 {branchName || "No active branch"}</span>
-        <span class="count">{logs.length} entries</span>
+        <span class="branch-chip">Branch: {branchName || "No active branch"}</span>
+        <span class="count">{logs.length} captured events</span>
+        <span class="hint">Commands, stdout, stderr, and durations are shown inline.</span>
       </div>
     </div>
 
@@ -28,26 +31,35 @@
       <button class="btn btn-ghost" on:click={() => dispatch("refresh")}>
         ↻ Refresh
       </button>
-      <button class="btn btn-accent" on:click={() => dispatch("toggle-floating")}>
+      <button class={`btn ${floatingEnabled ? "btn-ghost" : "btn-primary"}`} on:click={() => dispatch("toggle-floating")}>
         {floatingEnabled ? "Disable Floating Panel" : "Enable Floating Panel"}
       </button>
     </div>
   </div>
 
-  <div class="logs-body">
-    {#if logs.length === 0}
-      <div class="empty">No execution logs yet.</div>
-    {:else}
-      {#each logs as log}
-        <div class="entry {log.type}">
-          <div class="meta">
-            <span class="time">{formatTime(log.timestamp || log.time)}</span>
-            <span class="type-badge">{log.type}</span>
-          </div>
-          <div class="text">{log.message}</div>
+  <div class="terminal-frame">
+    <div class="terminal-titlebar">
+      <div class="terminal-dots" aria-hidden="true">
+        <span class="dot red"></span>
+        <span class="dot amber"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-label">git-squash-ui console</div>
+      <div class="terminal-meta">latest at the top</div>
+    </div>
+
+    <div class="logs-body" bind:this={bodyEl}>
+      {#if orderedLogs.length === 0}
+        <div class="empty">
+          <div class="empty-title">No execution logs yet.</div>
+          <div class="empty-copy">Run an action like refresh, compare, branch switch, commit, or stash apply to populate the console.</div>
         </div>
-      {/each}
-    {/if}
+      {:else}
+        {#each orderedLogs as log (log.id)}
+          <ExecutionLogEntry {log} />
+        {/each}
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -58,7 +70,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 18px;
     padding: 0 20px 20px;
   }
 
@@ -67,12 +79,10 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
-    padding: 24px;
+    padding: 22px 24px;
     border: 1px solid var(--bdr);
     border-radius: 14px;
-    background:
-      radial-gradient(circle at top left, rgba(88, 166, 255, 0.14), transparent 36%),
-      linear-gradient(180deg, var(--surface), var(--surface-h));
+    background: linear-gradient(180deg, var(--surface), var(--surface-h));
   }
 
   .logs-title-block h2 {
@@ -99,13 +109,19 @@
     color: var(--tx-d);
   }
 
-  .branch {
-    color: var(--acc);
+  .branch-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--terminal-chip-bg);
+    color: var(--terminal-chip-text);
     font-weight: 700;
   }
 
   .count {
-    font-weight: 600;
+    font-weight: 700;
   }
 
   .logs-actions {
@@ -115,101 +131,115 @@
     justify-content: flex-end;
   }
 
+  .terminal-frame {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--terminal-border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--terminal-raised-bg);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+  }
+
+  .terminal-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--terminal-border);
+    background: var(--terminal-titlebar-bg);
+    color: var(--terminal-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .terminal-dots {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+  }
+
+  .dot.red {
+    background: #ff5f56;
+  }
+
+  .dot.amber {
+    background: #ffbd2e;
+  }
+
+  .dot.green {
+    background: #27c93f;
+  }
+
+  .terminal-label {
+    flex: 1;
+    min-width: 0;
+    color: var(--terminal-text);
+  }
+
+  .terminal-meta {
+    flex-shrink: 0;
+  }
+
   .logs-body {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    padding: 18px;
-    border: 1px solid var(--bdr);
-    border-radius: 14px;
-    background: var(--surface);
-  }
-
-  .entry {
+    overflow-y: scroll;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--bdr);
-    background: rgba(255, 255, 255, 0.02);
-    font-family: "JetBrains Mono", "Fira Code", monospace;
-  }
-
-  .meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     gap: 12px;
+    background: var(--terminal-bg);
   }
 
-  .time {
-    color: var(--tx-d);
-    white-space: nowrap;
-    opacity: 0.7;
+  .logs-body::-webkit-scrollbar {
+    width: 8px;
   }
 
-  .type-badge {
-    text-transform: uppercase;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 999px;
-    opacity: 0.8;
-    letter-spacing: 0.08em;
+  .logs-body::-webkit-scrollbar-track {
+    background: transparent;
   }
 
-  .entry.error {
-    border-color: rgba(248, 81, 73, 0.28);
-    background: rgba(248, 81, 73, 0.06);
+  .logs-body::-webkit-scrollbar-thumb {
+    background: var(--terminal-border);
+    border-radius: 4px;
   }
 
-  .entry.error .type-badge {
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.12);
-  }
-
-  .entry.error .text {
-    color: #f85149;
-  }
-
-  .entry.info .type-badge {
-    color: #58a6ff;
-    background: rgba(88, 166, 255, 0.12);
-  }
-
-  .entry.success {
-    border-color: rgba(63, 185, 80, 0.28);
-    background: rgba(63, 185, 80, 0.06);
-  }
-
-  .entry.success .type-badge {
-    color: #3fb950;
-    background: rgba(63, 185, 80, 0.12);
-  }
-
-  .entry.success .text {
-    color: #3fb950;
-  }
-
-  .text {
-    color: var(--tx-b);
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
+  .logs-body::-webkit-scrollbar-thumb:hover {
+    background: var(--terminal-muted);
   }
 
   .empty {
     min-height: 280px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     text-align: center;
-    color: var(--tx-d);
-    font-style: italic;
-    font-size: 13px;
+    color: var(--terminal-muted);
+    padding: 24px;
+  }
+
+  .empty-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--terminal-text);
+  }
+
+  .empty-copy {
+    max-width: 480px;
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   @media (max-width: 860px) {
@@ -229,6 +259,14 @@
     .logs-actions {
       width: 100%;
       justify-content: flex-start;
+    }
+
+    .terminal-titlebar {
+      flex-wrap: wrap;
+    }
+
+    .terminal-meta {
+      width: 100%;
     }
   }
 </style>

@@ -1,0 +1,22 @@
+[package]
+name = "git-squash-ui"
+version = "1.0.0"
+description = "Git Squash UI desktop app"
+authors = ["Codex"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "git_squash_ui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.6", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2.10.3", features = [] }
+tauri-plugin-shell = "2.2.1"
+tokio = { version = "1", features = ["process", "time", "sync"] }

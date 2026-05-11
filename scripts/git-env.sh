@@ -2,10 +2,14 @@
 # Sourced by other scripts to handle YubiKey PIN automation
 
 git() {
-    local pin_file="$HOME/.yubikey-pin"
-    if [ -f "$pin_file" ]; then
-        local pin=$(cat "$pin_file")
-        # Use expect to automate PIN entry
+    local pin=""
+    if [ -n "$GIT_SQUASH_YUBIKEY_PIN" ]; then
+        pin="$GIT_SQUASH_YUBIKEY_PIN"
+    elif [ -f "$HOME/.yubikey-pin" ]; then
+        pin=$(cat "$HOME/.yubikey-pin")
+    fi
+
+    if [ -n "$pin" ]; then
         expect -c "
             set timeout 60
             spawn git $@

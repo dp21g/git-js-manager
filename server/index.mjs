@@ -1,51 +1,16 @@
-import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRoutes } from "./routes.mjs";
-import { git } from "./git.mjs";
-import { createLogStore } from "./logs.mjs";
-import { readConfig } from "./config.mjs";
+import { createApiApp, createState, DEFAULT_API_PORT } from "./app.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = 3174;
-
-// ── Shared state ─────────────────────────────────────────────────────────────
-const state = { repoPath: null, logs: createLogStore() };
-
-// Check CLI arg
-const arg = process.argv[2];
-if (arg && !arg.startsWith("-")) {
-  const abs = path.resolve(arg);
-  if (git("rev-parse --git-dir", abs).ok) state.repoPath = abs;
-}
-
-// Fall back to cwd
-if (!state.repoPath && git("rev-parse --git-dir", process.cwd()).ok) {
-  state.repoPath = process.cwd();
-}
-
-if (!state.repoPath) {
-  const config = readConfig();
-  if (config.lastRepo && git("rev-parse --git-dir", config.lastRepo).ok) {
-    state.repoPath = config.lastRepo;
-  }
-}
-
-// ── Express app ──────────────────────────────────────────────────────────────
-const app = express();
-app.use(express.json());
-
-// API routes
-app.use("/api", createRoutes(state));
-
-// Serve built frontend in production
+const PORT = DEFAULT_API_PORT;
+const state = createState();
 const distPath = path.join(__dirname, "..", "dist");
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(distPath));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-}
+
+const app = createApiApp(state, {
+  enableCors: true,
+  frontendDist: process.env.NODE_ENV === "production" ? distPath : null,
+});
 
 // ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, "127.0.0.1", () => {

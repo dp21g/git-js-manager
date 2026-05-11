@@ -1,5 +1,6 @@
 <script>
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import ExecutionLogEntry from "./ExecutionLogEntry.svelte";
 
   export let logs = [];
   export let branchName = "";
@@ -7,11 +8,17 @@
 
   let expanded = false;
   let panelEl;
+  let contentEl;
   let internalPosition = { x: 24, y: 40 };
   let dragOffset = { x: 0, y: 0 };
   let isDragging = false;
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  $: orderedLogs = logs;
+  $: if (expanded && contentEl) {
+    contentEl.scrollTop = 0;
+  }
 
   function normalizePosition(value) {
     return {
@@ -22,10 +29,10 @@
 
   function getPanelSize() {
     if (!panelEl) {
-      return { width: expanded ? 450 : 280, height: expanded ? 420 : 48 };
+      return { width: expanded ? 540 : 360, height: expanded ? 460 : 52 };
     }
     const rect = panelEl.getBoundingClientRect();
-    return { width: rect.width || (expanded ? 450 : 280), height: rect.height || (expanded ? 420 : 48) };
+    return { width: rect.width || (expanded ? 540 : 360), height: rect.height || (expanded ? 460 : 52) };
   }
 
   function clampPosition(next) {
@@ -54,14 +61,14 @@
 
   function handlePointerDown(event) {
     if (event.button !== 0) return;
-    if (event.target.closest('.toggle-main')) return;
+    if (event.target.closest(".toggle-main")) return;
     isDragging = true;
     dragOffset = {
       x: event.clientX - internalPosition.x,
       y: event.clientY - internalPosition.y
     };
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
   }
 
   function handlePointerMove(event) {
@@ -75,8 +82,8 @@
   function handlePointerUp() {
     if (!isDragging) return;
     isDragging = false;
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", handlePointerUp);
     dispatchSavedPosition();
   }
 
@@ -86,7 +93,7 @@
   }
 
   function dispatchSavedPosition() {
-    panelEl?.dispatchEvent(new CustomEvent('positionchange', {
+    panelEl?.dispatchEvent(new CustomEvent("positionchange", {
       detail: internalPosition,
       bubbles: true
     }));
@@ -101,7 +108,7 @@
   onMount(() => {
     applyExternalPosition(position);
     const resizeHandler = () => handleWindowResize();
-    window.addEventListener('resize', resizeHandler);
+    window.addEventListener("resize", resizeHandler);
     requestAnimationFrame(() => {
       if (position?.x == null || position?.y == null) {
         persistPosition(clampPosition(internalPosition));
@@ -111,9 +118,9 @@
     });
 
     return () => {
-      window.removeEventListener('resize', resizeHandler);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener("resize", resizeHandler);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   });
 </script>
@@ -127,28 +134,30 @@
 >
   <div class="panel-header" on:pointerdown={handlePointerDown}>
     <div class="drag-handle" title="Drag panel">⋮⋮</div>
-    <button class="toggle-btn toggle-main" on:click={toggle}>
-      <span class="icon">🌿</span>
-      <span class="label" title={branchName || 'No active branch'}>{branchName || 'No active branch'}</span>
+    <button type="button" class="toggle-btn toggle-main" on:click={toggle}>
+      <span class="panel-label">Console</span>
+      <span class="panel-branch" title={branchName || "No active branch"}>{branchName || "No active branch"}</span>
       <span class="count">{logs.length}</span>
-      <span class="arrow">{expanded ? '▼' : '▲'}</span>
+      <span class="arrow">{expanded ? "▼" : "▲"}</span>
     </button>
   </div>
 
   {#if expanded}
-    <div class="content">
-      {#each logs as log}
-        <div class="entry {log.type}">
-          <div class="meta">
-            <span class="time">{new Date(log.timestamp || log.time).toLocaleTimeString([], { hour12: false })}</span>
-            <span class="type-badge">{log.type}</span>
-          </div>
-          <span class="text">{log.message}</span>
-        </div>
-      {/each}
-      {#if logs.length === 0}
-        <div class="empty">No execution logs yet.</div>
-      {/if}
+    <div class="content-shell">
+      <div class="content-titlebar">
+        <span class="title">git-squash-ui</span>
+        <span class="meta">terminal transcript</span>
+      </div>
+
+      <div class="content" bind:this={contentEl}>
+        {#if orderedLogs.length === 0}
+          <div class="empty">No execution logs yet.</div>
+        {:else}
+          {#each orderedLogs as log (log.id)}
+            <ExecutionLogEntry {log} compact={true} />
+          {/each}
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -156,25 +165,24 @@
 <style>
   .log-panel {
     position: fixed;
-    width: min(520px, calc(100vw - 16px));
-    min-width: 360px;
-    background: var(--surface);
-    border: 1px solid var(--bdr);
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    width: min(560px, calc(100vw - 16px));
+    min-width: 380px;
+    background: var(--terminal-raised-bg);
+    border: 1px solid var(--terminal-border);
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
     z-index: 1000;
     overflow: hidden;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
-    max-height: 48px;
+    transition: max-height 0.24s ease, box-shadow 0.2s ease;
+    max-height: 52px;
   }
 
   .log-panel.expanded {
-    width: min(520px, calc(100vw - 16px));
-    max-height: 420px;
+    max-height: min(70vh, 560px);
   }
 
   .log-panel.dragging {
-    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.44);
   }
 
   .panel-header {
@@ -183,6 +191,7 @@
     cursor: grab;
     user-select: none;
     touch-action: none;
+    background: var(--terminal-titlebar-bg);
   }
 
   .log-panel.dragging .panel-header {
@@ -190,112 +199,123 @@
   }
 
   .drag-handle {
-    width: 36px;
+    width: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--acc);
-    background: rgba(88, 166, 255, 0.14);
-    border-right: 1px solid rgba(88, 166, 255, 0.2);
+    color: var(--terminal-muted);
+    border-right: 1px solid var(--terminal-border);
     font-size: 14px;
     letter-spacing: -1px;
-    text-shadow: 0 0 12px rgba(88, 166, 255, 0.4);
   }
 
   .toggle-btn {
     width: 100%;
-    height: 48px;
+    min-width: 0;
+    height: 52px;
     padding: 0 16px;
     display: flex;
     align-items: center;
     gap: 12px;
-    background: linear-gradient(90deg, rgba(88, 166, 255, 0.18), rgba(46, 160, 67, 0.14));
+    background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--tx-b);
-    font-size: 13px;
+    color: var(--terminal-text);
+    font-size: 12px;
     font-weight: 700;
-    min-width: 0;
   }
 
-  .toggle-btn:hover {
-    background: linear-gradient(90deg, rgba(88, 166, 255, 0.28), rgba(46, 160, 67, 0.2));
+  .panel-label {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10px;
+    color: var(--terminal-muted);
   }
 
-  .icon { font-size: 16px; filter: drop-shadow(0 0 10px rgba(88, 166, 255, 0.35)); }
-  .label {
+  .panel-branch {
     flex: 1;
-    text-align: left;
-    color: #7ee787;
-    text-shadow: 0 0 14px rgba(126, 231, 135, 0.4);
-    white-space: nowrap;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    color: var(--terminal-command);
+    font-family: var(--font-mono);
   }
+
   .count {
     font-size: 10px;
-    background: rgba(255,255,255,0.12);
-    padding: 2px 6px;
-    border-radius: 10px;
-    color: var(--tx-b);
-  }
-  .arrow { opacity: 0.75; font-size: 10px; }
-
-  .content {
-    height: 360px;
-    overflow-y: auto;
-    padding: 12px;
-    border-top: 1px solid var(--bdr);
-    background: var(--surface-d);
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: var(--terminal-chip-bg);
+    padding: 3px 7px;
+    border-radius: 999px;
+    color: var(--terminal-chip-text);
   }
 
-  .entry {
+  .arrow {
+    opacity: 0.75;
+    font-size: 10px;
+  }
+
+  .content-shell {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-    margin-bottom: 8px;
-    font-size: 11px;
-    border-radius: 6px;
-    border: 1px solid var(--bdr);
-    background: rgba(255,255,255,0.02);
+    border-top: 1px solid var(--terminal-border);
+    background: var(--terminal-bg);
   }
 
-  .meta {
+  .content-titlebar {
     display: flex;
     justify-content: space-between;
+    gap: 12px;
     align-items: center;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--terminal-muted);
   }
 
-  .time { color: var(--tx-d); white-space: nowrap; opacity: 0.6; }
-
-  .type-badge {
-    text-transform: uppercase;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 1px 4px;
-    border-radius: 3px;
-    opacity: 0.7;
+  .title {
+    color: var(--terminal-text);
   }
 
-  .entry.error { border-color: rgba(248, 81, 73, 0.3); background: rgba(248, 81, 73, 0.05); }
-  .entry.error .type-badge { color: #f85149; background: rgba(248, 81, 73, 0.1); }
-  .entry.error .text { color: #f85149; }
+  .content {
+    height: 420px;
+    overflow-y: scroll;
+    padding: 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-  .entry.info .type-badge { color: #58a6ff; background: rgba(88, 166, 255, 0.1); }
+  .content::-webkit-scrollbar {
+    width: 8px;
+  }
 
-  .entry.success { border-color: rgba(63, 185, 80, 0.3); background: rgba(63, 185, 80, 0.05); }
-  .entry.success .type-badge { color: #3fb950; background: rgba(63, 185, 80, 0.1); }
-  .entry.success .text { color: #3fb950; }
+  .content::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-  .text { word-break: break-all; line-height: 1.4; color: var(--tx-b); }
+  .content::-webkit-scrollbar-thumb {
+    background: var(--terminal-border);
+    border-radius: 4px;
+  }
+
+  .content::-webkit-scrollbar-thumb:hover {
+    background: var(--terminal-muted);
+  }
 
   .empty {
     padding: 40px 20px;
     text-align: center;
-    color: var(--tx-d);
+    color: var(--terminal-muted);
     font-style: italic;
     font-size: 12px;
+  }
+
+  @media (max-width: 840px) {
+    .log-panel {
+      min-width: min(92vw, 380px);
+      width: min(92vw, 560px);
+    }
   }
 </style>

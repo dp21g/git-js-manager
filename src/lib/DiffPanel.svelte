@@ -3,6 +3,7 @@
   const dispatch = createEventDispatcher();
 
   export let diff = "";
+  export let allowReverse = true;
 
   let selectedIndices = new Set();
   let shiftAnchor = null;
@@ -85,8 +86,12 @@
   $: data = parseDiff(diff);
   $: lines = data.lines;
   $: globalHeader = data.globalHeader;
+  $: if (!allowReverse && selectedIndices.size > 0) {
+    clearSelection();
+  }
 
   function toggleLine(index, event) {
+    if (!allowReverse) return;
     const next = new Set(selectedIndices);
     
     if (event.shiftKey && shiftAnchor !== null) {
@@ -116,6 +121,7 @@
   }
 
   function discardSelection() {
+    if (!allowReverse) return;
     if (selectedIndices.size === 0) return;
     if (!confirm(`Discard ${selectedIndices.size} selected lines?`)) return;
     
@@ -144,6 +150,7 @@
   }
 
   function discardAllHunks() {
+      if (!allowReverse) return;
       if (!confirm("Discard ALL changes in this file?")) return;
       const allSelected = new Set();
       lines.forEach(l => {
@@ -239,6 +246,7 @@
   }
 
   function handleReverseHunk(hunkIndex) {
+    if (!allowReverse) return;
     const next = new Set();
     let i = hunkIndex + 1;
     while (i < lines.length && lines[i].type !== 'hunk' && lines[i].type !== 'meta') {
@@ -259,7 +267,9 @@
   {:else}
     <div class="diff-header-bar">
         <div class="header-left">
-            {#if selectedIndices.size > 0}
+            {#if !allowReverse}
+                <span class="hint">Review this stash diff, then apply the file or the whole stash from the panel above.</span>
+            {:else if selectedIndices.size > 0}
                 <button class="btn btn-primary btn-sm discard-sel-btn" on:click={discardSelection}>
                     🗑 Discard Selected ({selectedIndices.size} lines)
                 </button>
@@ -272,7 +282,7 @@
         </div>
         
         <div class="header-right">
-            {#if diff}
+            {#if diff && allowReverse}
                 <button class="btn btn-ghost btn-sm discard-all-btn" on:click={discardAllHunks}>
                     🗑 Discard All Hunks
                 </button>
@@ -291,7 +301,15 @@
             class:meta={line.type === "meta"}
             class:selected={selectedIndices.has(line.index)}
         >
-          <div class="line-nums" on:click={(e) => toggleLine(line.index, e)}>
+          <div
+            class="line-nums"
+            class:disabled={!allowReverse}
+            on:click={(e) => toggleLine(line.index, e)}
+            on:keydown={(e) => (e.key === "Enter" || e.key === " ") && toggleLine(line.index, e)}
+            role="button"
+            aria-disabled={!allowReverse}
+            tabindex="0"
+          >
             {#if line.type !== 'hunk' && line.type !== 'meta'}
                 <span class="ln">{line.left || ''}</span>
                 <span class="ln">{line.right || ''}</span>
@@ -301,9 +319,11 @@
           </div>
           
           {#if line.type === 'hunk'}
-            <button class="hunk-reverse-btn" on:click={() => handleReverseHunk(line.index)} title="Discard this entire hunk">
-                🗑 Discard Hunk
-            </button>
+            {#if allowReverse}
+              <button class="hunk-reverse-btn" on:click={() => handleReverseHunk(line.index)} title="Discard this entire hunk">
+                  🗑 Discard Hunk
+              </button>
+            {/if}
           {/if}
 
 
@@ -383,6 +403,14 @@
 
   .line-nums:hover {
       background: var(--bdr);
+  }
+
+  .line-nums.disabled {
+      cursor: default;
+  }
+
+  .line-nums.disabled:hover {
+      background: var(--surface-h);
   }
 
   .ln, .ln-pad {
